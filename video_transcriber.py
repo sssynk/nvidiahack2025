@@ -68,21 +68,21 @@ class VideoTranscriber:
     
     def transcribe_audio(self, audio_path: str, language_code: str = "en-US") -> str:
         """
-        Transcribe audio file using NVIDIA Riva ASR client
+        Transcribe audio file using NVIDIA Riva ASR client (streaming capture of all output lines)
         
         Args:
             audio_path: Path to the audio file
             language_code: Language code (default: en-US)
             
         Returns:
-            Transcribed text
+            Complete transcript aggregated from all streamed output lines
         """
         if not os.path.isfile(audio_path):
             raise ValueError(f"Invalid audio file path: {audio_path}")
         
-        # Build command to run Riva transcription script
+        # Build command to run Riva transcription script (unbuffered python for streaming)
         command = [
-            "python", self.riva_script,
+            "python", "-u", self.riva_script,
             "--server", self.server,
             "--use-ssl",
             "--metadata", "function-id", self.asr_function_id,
@@ -92,31 +92,43 @@ class VideoTranscriber:
         ]
         
         try:
-            # Run the Riva client script and capture output
-            result = subprocess.run(
+            # Stream stdout line-by-line to accumulate the full transcript
+            process = subprocess.Popen(
                 command,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                check=True,
-                timeout=300
+                bufsize=1
             )
             
-            # Parse the output to extract transcript
-            # The Riva script prints transcripts to stdout
-            output = result.stdout.strip()
+            all_lines = []
+            # Read stdout as it arrives
+            assert process.stdout is not None
+            for line in process.stdout:
+                line_stripped = line.strip()
+                if line_stripped:
+                    all_lines.append(line_stripped)
             
-            # Extract only the final transcript (last line usually)
-            lines = [line.strip() for line in output.split('\n') if line.strip()]
-            if lines:
-                # Return the last non-empty line which should be the final transcript
-                return lines[-1]
-            else:
+            # Ensure process completes and capture any remaining stderr
+            stdout_data, stderr_data = process.communicate()
+            if process.returncode != 0:
+                raise RuntimeError(f"Riva ASR failed: {stderr_data}")
+            
+            # Include any buffered stdout (if communicate returned extra)
+            if stdout_data:
+                for extra_line in stdout_data.split("\n"):
+                    extra_line = extra_line.strip()
+                    if extra_line:
+                        all_lines.append(extra_line)
+            
+            if not all_lines:
                 raise ValueError("No transcript generated")
+            
+            # Join all streamed lines into a single transcript. Using newline preserves structure from the client.
+            return "\n".join(all_lines)
                 
         except subprocess.TimeoutExpired:
             raise RuntimeError("Transcription timed out after 5 minutes")
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Riva ASR failed: {e.stderr}")
     
     def transcribe_video(self, video_path: str, language_code: str = "en-US", cleanup: bool = True) -> Tuple[str, str]:
         """

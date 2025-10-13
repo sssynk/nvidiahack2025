@@ -6,6 +6,9 @@ from integrated_agent import IntegratedClassAgent
 import os
 from typing import List, Tuple
 import json
+import re
+import uuid
+from datetime import datetime
 
 
 # Initialize the agent
@@ -13,32 +16,27 @@ api_key = os.getenv("NVIDIA_API_KEY")
 agent = IntegratedClassAgent(api_key=api_key)
 
 
-def process_video(video_file, class_id: str, title: str, auto_summarize: bool, progress=gr.Progress()):
+def process_video(video_file):
     """Process uploaded video"""
     try:
         if not video_file:
-            return "❌ Please upload a video file", "", "", ""
+            # No file: keep spinner hidden, clear outputs
+            return "", "❌ Please upload a video file", gr.Dropdown(), gr.update(visible=False)
         
-        if not class_id or not class_id.strip():
-            return "❌ Please provide a Class ID", "", "", ""
+        # Derive title and class ID automatically from filename
+        base = os.path.splitext(os.path.basename(video_file))[0]
+        pretty_title = re.sub(r"[-_]+", " ", base).strip()
+        pretty_title = pretty_title.title() if pretty_title else "Untitled Class"
+        slug = re.sub(r"[^a-zA-Z0-9]+", "-", base).strip('-').lower() or "class"
+        class_id = f"{slug}-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
         
-        progress(0.2, desc="Extracting audio...")
-        
-        # Use provided title or generate from filename
-        if not title or not title.strip():
-            title = None
-        
-        progress(0.4, desc="Transcribing audio...")
         result = agent.process_video(
             video_path=video_file,
             class_id=class_id.strip(),
-            title=title.strip() if title else None,
-            auto_summarize=auto_summarize
+            title=pretty_title,
+            auto_summarize=True
         )
         
-        progress(1.0, desc="Complete!")
-        
-        status = f"✅ Successfully processed: **{result['title']}**\n\nClass ID: `{result['class_id']}`"
         transcript = result['transcript']
         summary = result.get('summary', 'No summary generated')
         
@@ -46,10 +44,12 @@ def process_video(video_file, class_id: str, title: str, auto_summarize: bool, p
         classes = agent.list_classes()
         class_choices = [f"{c['title']} ({c['class_id']})" for c in classes]
         
-        return status, transcript, summary, gr.Dropdown(choices=class_choices, value=class_choices[-1] if class_choices else None)
+        # Return outputs and hide spinner
+        return transcript, summary, gr.Dropdown(choices=class_choices, value=class_choices[-1] if class_choices else None), gr.update(visible=False)
         
     except Exception as e:
-        return f"❌ Error: {str(e)}", "", "", gr.Dropdown()
+        # On error, hide spinner and show error message in summary area
+        return "", f"❌ Error: {str(e)}", gr.Dropdown(), gr.update(visible=False)
 
 
 def get_class_list():
@@ -162,15 +162,6 @@ custom_css = """
     margin: auto;
 }
 
-.header {
-    text-align: center;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 10px;
-    margin-bottom: 20px;
-}
-
 .tab-nav {
     background-color: #f8f9fa;
 }
@@ -178,17 +169,28 @@ custom_css = """
 footer {
     display: none !important;
 }
+
+/* Spinner styles */
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #00a86b; /* NVIDIA green-ish */
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 """
 
 # Build the Gradio interface
 with gr.Blocks(css=custom_css, theme=gr.themes.Soft(), title="Class AI Agent") as demo:
-    
-    gr.HTML("""
-    <div class="header">
-        <h1>🎓 Class AI Agent</h1>
-        <p>Upload videos, get AI-powered transcripts and summaries, ask questions about your classes</p>
-    </div>
-    """)
+    # Top logo bar (left-aligned NVIDIA logo)
+    with gr.Row():
+        gr.Image(value="nvidialogo.png", show_label=False, interactive=False, height=40, elem_id="top_logo")
     
     with gr.Tabs():
         
@@ -197,33 +199,20 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft(), title="Class AI Agent") a
             gr.Markdown("### Upload a class video for automatic transcription")
             
             with gr.Row():
+                # Left column: inputs and transcript
                 with gr.Column(scale=1):
                     video_input = gr.Video(label="Upload Video or Audio File")
-                    class_id_input = gr.Textbox(
-                        label="Class ID",
-                        placeholder="e.g., cs101-lecture1",
-                        info="Unique identifier for this class"
-                    )
-                    title_input = gr.Textbox(
-                        label="Class Title (Optional)",
-                        placeholder="e.g., Introduction to Python",
-                        info="Will be auto-generated from filename if left empty"
-                    )
-                    auto_summarize = gr.Checkbox(
-                        label="Auto-generate summary",
-                        value=True,
-                        info="Automatically create an AI summary after transcription"
-                    )
                     process_btn = gr.Button("🚀 Process Video", variant="primary", size="lg")
-                
-                with gr.Column(scale=1):
-                    status_output = gr.Markdown(label="Status")
                     
-            with gr.Accordion("📝 Transcript", open=False):
-                transcript_output = gr.Textbox(label="Generated Transcript", lines=10, max_lines=20)
+                    with gr.Accordion("📝 Transcript", open=False):
+                        transcript_output = gr.Textbox(label="Generated Transcript", lines=10, max_lines=20)
+                
+                # Right column: summary (markdown) with loading placeholder
+                with gr.Column(scale=1):
+                    gr.Markdown("### AI-Generated Summary")
+                    loading_placeholder = gr.HTML(visible=False)
+                    summary_output = gr.Markdown(label="Summary")
             
-            with gr.Accordion("📋 Summary", open=True):
-                summary_output = gr.Textbox(label="AI-Generated Summary", lines=8, max_lines=15)
             
             class_list_state = gr.State([])
         
@@ -297,15 +286,26 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Soft(), title="Class AI Agent") a
                 view_transcript = gr.Textbox(label="Transcript", lines=10, max_lines=20)
             
             with gr.Accordion("📋 Summary", open=True):
-                view_summary = gr.Textbox(label="Summary", lines=8, max_lines=15)
+                view_summary = gr.Markdown(label="Summary")
     
     # Event handlers
     
     # Upload tab
+    def show_loader():
+        # Show the circular loader before processing starts
+        return gr.update(value='<div style="display:flex;justify-content:flex-start;align-items:center;gap:8px;"><div class="loader"></div><span>Processing...</span></div>', visible=True), gr.update(value="", visible=True)
+
+    # First, show loader; then run processing and hide loader in the result
     process_btn.click(
+        fn=show_loader,
+        inputs=[],
+        outputs=[loading_placeholder, summary_output],
+        show_progress=False
+    ).then(
         fn=process_video,
-        inputs=[video_input, class_id_input, title_input, auto_summarize],
-        outputs=[status_output, transcript_output, summary_output, class_dropdown]
+        inputs=[video_input],
+        outputs=[transcript_output, summary_output, class_dropdown, loading_placeholder],
+        show_progress=False
     )
     
     # Ask Questions tab
