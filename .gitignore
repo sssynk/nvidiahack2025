@@ -36,6 +36,10 @@ wheels/
 # Transcripts storage
 transcripts/
 
+# Temporary files
+*.tmp
+*.temp
+
 # OS
 .DS_Store
 Thumbs.db
