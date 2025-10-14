@@ -28,7 +28,7 @@ class IntegratedClassAgent:
         self,
         video_path: str,
         class_id: str,
-        title: Optional[str] = None,
+        session_title: Optional[str] = None,
         language_code: str = "en-US",
         auto_summarize: bool = True
     ) -> Dict:
@@ -38,16 +38,16 @@ class IntegratedClassAgent:
         Args:
             video_path: Path to the video file
             class_id: Unique identifier for the class
-            title: Optional title for the class
+            session_title: Optional title for the session/lecture
             language_code: Language code for transcription
             auto_summarize: Whether to automatically generate a summary
             
         Returns:
             Dictionary with transcript and summary information
         """
-        # Get video filename if no title provided
-        if not title:
-            title = Path(video_path).stem.replace('_', ' ').replace('-', ' ').title()
+        # Get session title from filename if not provided
+        if not session_title:
+            session_title = Path(video_path).stem.replace('_', ' ').replace('-', ' ').title()
         
         # Transcribe the video
         print(f"Processing video: {video_path}")
@@ -56,20 +56,21 @@ class IntegratedClassAgent:
         if not transcript or not transcript.strip():
             raise ValueError("Transcription failed or produced empty result")
         
-        # Add to class agent
-        print(f"Adding transcript to class agent...")
-        result = self.class_agent.add_class_transcript(
+        # Add session to class agent
+        print(f"Adding session to class agent...")
+        session = self.class_agent.add_class_session(
             class_id=class_id,
             transcript=transcript,
-            title=title,
-            auto_summarize=auto_summarize
+            session_title=session_title,
+            auto_summarize=auto_summarize,
         )
         
         return {
             "class_id": class_id,
-            "title": title,
+            "session_id": session.get("session_id"),
+            "title": session_title,
             "transcript": transcript,
-            "summary": result.get("summary"),
+            "summary": session.get("summary"),
             "video_path": video_path
         }
     
@@ -89,7 +90,10 @@ class IntegratedClassAgent:
         """Get information about a specific class"""
         return self.class_agent.get_class_info(class_id)
     
-    def summarize_transcript(self, class_id: str):
-        """Generate or regenerate a summary"""
-        return self.class_agent.summarize_transcript(class_id)
+    def summarize_session(self, class_id: str, session_id: str):
+        """Generate or regenerate a session summary"""
+        return self.class_agent.summarize_session(class_id, session_id)
+
+    def create_class(self, name: str, code: Optional[str] = None, color: Optional[str] = None):
+        return self.class_agent.create_class(name=name, code=code, color=color)
 
