@@ -24,7 +24,7 @@ class NvidiaAIAgent:
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=self.api_key
         )
-        self.model = "nvidia/nvidia-nemotron-nano-9b-v2"
+        self.model = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
     
     def chat(
         self, 
@@ -32,7 +32,7 @@ class NvidiaAIAgent:
         temperature: float = 0.6,
         max_tokens: int = 2048,
         stream: bool = True,
-        use_thinking: bool = True
+        use_thinking: bool = False
     ) -> Generator[str, None, None]:
         """
         Send a chat request to the NVIDIA API
@@ -52,6 +52,10 @@ class NvidiaAIAgent:
             extra_body = {
                 "min_thinking_tokens": 1024,
                 "max_thinking_tokens": 2048
+            }
+        else:
+            extra_body = {
+                "use_thinking": False
             }
         
         completion = self.client.chat.completions.create(
@@ -100,6 +104,10 @@ class NvidiaAIAgent:
             extra_body = {
                 "min_thinking_tokens": 1024,
                 "max_thinking_tokens": 2048
+            }
+        else:
+            extra_body = {
+                "use_thinking": False
             }
         
         completion = self.client.chat.completions.create(

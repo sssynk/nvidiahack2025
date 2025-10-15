@@ -4,6 +4,7 @@ import React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { marked } from "marked";
 import {
   Card,
@@ -129,6 +130,8 @@ function mapServerClassesToUI(list: unknown[]): ClassInfo[] {
 // ---------------------------------------------
 
 export default function ClassNotesDemo() {
+  const router = useRouter();
+  const initialClassFromQuery: string | null = null;
   const [stage, setStage] = useState<Stage>("upload");
   const [progress, setProgress] = useState(0);
   const [uploadName, setUploadName] = useState<string | null>(null);
@@ -137,7 +140,7 @@ export default function ClassNotesDemo() {
 
   // API state
   const [classesUI, setClassesUI] = useState<ClassInfo[]>(demoClasses);
-  const [selectedClassId, setSelectedClassId] = useState<string | null>(demoClasses[0]?.id ?? null);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(initialClassFromQuery || (demoClasses[0]?.id ?? null));
   const [selectedClassInfo, setSelectedClassInfo] = useState<Record<string, unknown> | null>(null);
 
   const selectedClass = useMemo(() => getSelectedClass(classesUI, selectedClassId), [classesUI, selectedClassId]);
@@ -195,14 +198,26 @@ export default function ClassNotesDemo() {
 
   useEffect(() => {
     (async () => {
-      const id = await refreshClasses();
-      if (id) await loadClassInfo(id);
+      const urlParam = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('classId') : null;
+      const id = await refreshClasses(urlParam || undefined);
+      if (urlParam) {
+        setSelectedClassId(urlParam);
+        await loadClassInfo(urlParam);
+      } else if (id) {
+        await loadClassInfo(id);
+      }
     })();
   }, []);
 
   useEffect(() => {
-    if (selectedClassId) loadClassInfo(selectedClassId);
-  }, [selectedClassId]);
+    if (selectedClassId) {
+      // push classId to query param without full page reload
+      const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+      params.set("classId", selectedClassId);
+      router.replace(`?${params.toString()}`);
+      loadClassInfo(selectedClassId);
+    }
+  }, [selectedClassId, router]);
 
   // Upload handler
   async function handleUpload(file: File) {
@@ -244,6 +259,10 @@ export default function ClassNotesDemo() {
           setStage("upload");
           setProgress(0);
           setUploadName(null);
+        }}
+        onGoDashboard={() => {
+          setStage("dashboard");
+          if (selectedClassId) void loadClassInfo(selectedClassId);
         }}
       />
 
@@ -314,6 +333,7 @@ export default function ClassNotesDemo() {
                 selectedId={selectedClassId}
                 onSelect={setSelectedClassId}
                 onNewUpload={() => setStage("upload")}
+                onAddClass={() => setStage("onboarding")}
               />
 
               <ClassDetail
@@ -322,6 +342,10 @@ export default function ClassNotesDemo() {
                 selectedSessionId={selectedSessionId}
                 onSelectSession={setSelectedSessionId}
                 onUploadEmpty={() => {
+                  setUploadClassId(selectedClassId);
+                  setStage("upload");
+                }}
+                onUploadForClass={() => {
                   setUploadClassId(selectedClassId);
                   setStage("upload");
                 }}
@@ -340,19 +364,19 @@ export default function ClassNotesDemo() {
 // Top Navigation
 // ---------------------------------------------
 
-function TopNav({ onReset }: { onReset: () => void }) {
+function TopNav({ onReset, onGoDashboard }: { onReset: () => void; onGoDashboard: () => void }) {
   return (
     <div className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-3">
-        <button className="flex items-center gap-2" onClick={onReset} title="Go home">
+        <button className="flex items-center gap-2" onClick={onGoDashboard} title="Go to dashboard">
           <Image src="/nvidialogo.png" alt="NVIDIA" width={120} height={24} priority />
         </button>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={onReset}>
-            <Plus className="mr-2 h-4 w-4" /> New upload
+          <Button variant="outline" size="sm" onClick={onGoDashboard}>
+            Dashboard
           </Button>
-          <Button variant="outline" size="icon" title="Settings (visual only)">
-            <Settings className="h-4 w-4" />
+          <Button size="sm" className="bg-black text-white hover:bg-black/90" onClick={onReset}>
+            <Plus className="mr-2 h-4 w-4" /> New upload
           </Button>
         </div>
       </div>
@@ -385,12 +409,6 @@ function UploadScreen({
 
   return (
     <div className="mx-auto grid max-w-4xl gap-6">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Transcribe your class videos effortlessly</h1>
-        <p className="mt-2 text-muted-foreground">
-          Upload a lecture recording and get clean transcripts, summaries, and a chat interface to query them.
-        </p>
-      </div>
 
       <Card className="overflow-hidden border-2 border-dashed">
         <CardContent className="p-0">
@@ -433,9 +451,6 @@ function UploadScreen({
                 <Button onClick={() => inputRef.current?.click()}>
                   <PlayCircle className="mr-2 h-4 w-4" /> Choose a video
                 </Button>
-                <Button variant="outline" onClick={() => onUpload(null)} disabled>
-                  Use demo video
-                </Button>
               </div>
               <input
                 ref={inputRef}
@@ -451,10 +466,6 @@ function UploadScreen({
           </div>
         </CardContent>
       </Card>
-
-      <div className="mx-auto max-w-2xl text-center text-sm text-muted-foreground">
-        <Sparkles className="mr-1 inline h-4 w-4 align-[-2px]" /> Videos are processed locally via your API.
-      </div>
     </div>
   );
 }
@@ -573,20 +584,27 @@ function Sidebar({
   selectedId,
   onSelect,
   onNewUpload,
+  onAddClass,
 }: {
   classes: ClassInfo[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onNewUpload: () => void;
+  onAddClass: () => void;
 }) {
   return (
     <Card className="h-[72vh] lg:h-[78vh]">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <span className="flex items-center gap-2"><FileText className="h-4 w-4" /> Classes</span>
-          <Button size="icon" variant="ghost" onClick={onNewUpload} title="New Upload">
-            <UploadCloud className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" onClick={onNewUpload} title="New Upload">
+              <UploadCloud className="h-4 w-4" />
+            </Button>
+            <Button size="icon" variant="ghost" onClick={onAddClass} title="Add Class">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
         </CardTitle>
       </CardHeader>
       <Separator />
@@ -636,12 +654,14 @@ function ClassDetail({
   selectedSessionId,
   onSelectSession,
   onUploadEmpty,
+  onUploadForClass,
 }: {
   classInfo: ClassInfo;
   serverClass: Record<string, unknown> | null;
   selectedSessionId: string | null;
   onSelectSession: (id: string) => void;
   onUploadEmpty: () => void;
+  onUploadForClass: () => void;
 }) {
   const sessions = useMemo(() => {
     return (serverClass?.sessions as SessionData[]) || [];
@@ -680,6 +700,9 @@ function ClassDetail({
                   ))}
                 </select>
               ) : null}
+              <Button variant="ghost" size="sm" onClick={onUploadForClass} title="Upload new lecture">
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload new lecture
+              </Button>
             </div>
           </div>
         </CardHeader>
@@ -770,8 +793,10 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
             continue;
           }
         }
-        // remove trailing '"}' if present
-        const clean = buffer.replace(/"}\s*$/, "");
+        // remove trailing '"}' if present and clean up escaped characters
+        let clean = buffer.replace(/"}\s*$/, "");
+        // Unescape JSON escaped characters
+        clean = clean.replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
         setMessages((m) => {
           const copy = m.slice();
           copy[copy.length - 1] = { role: "assistant", text: clean };
@@ -787,8 +812,8 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
   }
 
   return (
-    <Card className="h-[72vh] lg:h-[78vh]">
-      <CardHeader className="pb-2">
+    <Card className="flex h-[72vh] flex-col lg:h-[78vh]">
+      <CardHeader className="flex-shrink-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
           <MessageSquare className="h-4 w-4" /> Ask your notes
         </CardTitle>
@@ -797,24 +822,24 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
         </CardDescription>
       </CardHeader>
       <Separator />
-      <CardContent className="flex h-[calc(72vh-6rem)] flex-col gap-3 lg:h-[calc(78vh-6rem)]">
-        <ScrollArea className="flex-1 rounded-lg border p-3">
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-4">
+        <div className="flex-1 min-h-0 overflow-y-auto rounded-lg border p-3">
           {messages.length === 0 ? (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground/50">
               Chatting with {classInfo.code}
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 pr-4">
               {messages.map((m, i) => (
                 <div key={i} className={classNames("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}>
                   {m.role === "assistant" && (
-                    <Avatar className="h-6 w-6 self-start">
+                    <Avatar className="h-6 w-6 flex-shrink-0 self-start">
                       <AvatarFallback>AI</AvatarFallback>
                     </Avatar>
                   )}
                   <div
                     className={classNames(
-                      "max-w-[80%] rounded-2xl px-3 py-2 text-sm",
+                      "max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
                       m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                     )}
                   >
@@ -824,9 +849,9 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
 
-        <div className="rounded-lg border bg-muted/40 p-3">
+        <div className="flex-shrink-0 rounded-lg border bg-muted/40 p-3">
           <div className="text-xs text-muted-foreground">
             Ask about the transcript. Responses stream in real time.
           </div>
