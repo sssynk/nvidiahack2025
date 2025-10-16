@@ -50,14 +50,3 @@ Thumbs.db
 
 # Next.js (UI folder)
 ui/node_modules/
-ui/.next/
-ui/out/
-ui/build/
-ui/.vercel/
-ui/*.tsbuildinfo
-ui/next-env.d.ts
-ui/npm-debug.log*
-ui/yarn-debug.log*
-ui/yarn-error.log*
-ui/.pnpm-debug.log*
-
