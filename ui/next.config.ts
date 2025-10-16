@@ -7,7 +7,7 @@ const nextConfig = {
       '@': path.resolve(__dirname, './src'),
     },
   },
-  webpack: (config) => {
+  webpack: (config: any) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@': path.resolve(__dirname, './src'),
