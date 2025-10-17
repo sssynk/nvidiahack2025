@@ -70,7 +70,7 @@ class ClassAIAgent:
         messages = [
             {
                 "role": "system",
-                "content": "You are an expert at summarizing educational content. Create clear, concise, and comprehensive summaries of lecture sessions. Include key topics, main concepts, important points."
+                "content": "/no_think You are an expert at summarizing educational content. Create clear, concise, and comprehensive summaries of lecture sessions. Include key topics, main concepts, important points."
             },
             {
                 "role": "user",

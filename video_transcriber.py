@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional, Tuple
+import threading
 
 
 class VideoTranscriber:
@@ -61,9 +62,13 @@ class VideoTranscriber:
         ]
         
         try:
+            print(f"[FFMPEG] Extract command: {' '.join(command)}")
             result = subprocess.run(command, capture_output=True, check=True, text=True)
+            if result.stderr:
+                print(f"[FFMPEG] stderr: {result.stderr[:1000]}")
             return output_path
         except subprocess.CalledProcessError as e:
+            print(f"[FFMPEG] ERROR stderr: {e.stderr}")
             raise RuntimeError(f"Failed to extract audio: {e.stderr}")
     
     def transcribe_audio(self, audio_path: str, language_code: str = "en-US") -> str:
@@ -80,7 +85,57 @@ class VideoTranscriber:
         if not os.path.isfile(audio_path):
             raise ValueError(f"Invalid audio file path: {audio_path}")
         
-        # Build command to run Riva transcription script (unbuffered python for streaming)
+        # First try using the Python Riva client directly (preferable when available)
+        try:
+            import riva.client  # type: ignore
+            print("[RIVA] Using Python client (direct API)")
+
+            auth = riva.client.Auth(
+                use_ssl=True,
+                uri=self.server,
+                metadata_args=[
+                    ("function-id", self.asr_function_id),
+                    ("authorization", f"Bearer {self.api_key}"),
+                ],
+            )
+            asr_service = riva.client.ASRService(auth)
+
+            recog_config = riva.client.RecognitionConfig(
+                language_code=language_code,
+                model=None,
+                max_alternatives=1,
+                profanity_filter=True,
+                enable_automatic_punctuation=True,
+                verbatim_transcripts=True,
+                enable_word_time_offsets=False,
+            )
+            streaming_config = riva.client.StreamingRecognitionConfig(
+                config=recog_config,
+                interim_results=True,
+            )
+
+            collected: list[str] = []
+            # 1600 frames chunk size matches the CLI default
+            with riva.client.AudioChunkFileIterator(audio_path, 1600, None) as audio_iter:
+                for response in asr_service.streaming_response_generator(
+                    audio_chunks=audio_iter,
+                    streaming_config=streaming_config,
+                ):
+                    for result in getattr(response, "results", []):
+                        alts = getattr(result, "alternatives", [])
+                        if alts:
+                            text = getattr(alts[0], "transcript", "")
+                            if text:
+                                collected.append(text)
+
+            if not collected:
+                raise ValueError("No transcript generated (direct API)")
+
+            return "\n".join(collected)
+        except Exception as direct_err:
+            print(f"[RIVA] Direct API failed, falling back to script: {direct_err}")
+
+        # Fallback: run the provided script via subprocess
         command = [
             "python", "-u", self.riva_script,
             "--server", self.server,
@@ -90,18 +145,47 @@ class VideoTranscriber:
             "--language-code", language_code,
             "--input-file", audio_path
         ]
-        
+
         try:
             # Stream stdout line-by-line to accumulate the full transcript
+            # Ensure the python-clients package path is available to the script
+            env = os.environ.copy()
+            python_clients_root = os.path.join(os.path.dirname(__file__), "python-clients")
+            existing = env.get("PYTHONPATH", "")
+            env["PYTHONPATH"] = f"{python_clients_root}:{existing}" if existing else python_clients_root
+            print(f"[RIVA] Script: {self.riva_script}")
+            print(f"[RIVA] Server: {self.server}")
+            print(f"[RIVA] Function ID: {self.asr_function_id}")
+            print(f"[RIVA] PYTHONPATH: {env['PYTHONPATH']}")
+            print(f"[RIVA] Command: {' '.join(command)}")
+
             process = subprocess.Popen(
                 command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1
+                bufsize=1,
+                env=env
             )
             
             all_lines = []
+            stderr_lines = []
+
+            # Drain stderr concurrently so it doesn't block
+            def _drain_stderr(pipe):
+                try:
+                    assert pipe is not None
+                    for eline in pipe:
+                        el = eline.strip()
+                        if el:
+                            stderr_lines.append(el)
+                            print(f"[RIVA STDERR] {el[:1000]}")
+                except Exception:
+                    pass
+
+            stderr_thread = threading.Thread(target=_drain_stderr, args=(process.stderr,), daemon=True)
+            stderr_thread.start()
+
             # Read stdout as it arrives
             assert process.stdout is not None
             for line in process.stdout:
@@ -111,8 +195,10 @@ class VideoTranscriber:
             
             # Ensure process completes and capture any remaining stderr
             stdout_data, stderr_data = process.communicate()
+            stderr_thread.join(timeout=1)
             if process.returncode != 0:
-                raise RuntimeError(f"Riva ASR failed: {stderr_data}")
+                tail = "\n".join(stderr_lines[-100:])
+                raise RuntimeError(f"Riva ASR failed (code {process.returncode}). Stderr tail: {tail or stderr_data}")
             
             # Include any buffered stdout (if communicate returned extra)
             if stdout_data:

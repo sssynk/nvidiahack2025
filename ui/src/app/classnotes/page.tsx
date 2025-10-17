@@ -240,11 +240,13 @@ export default function ClassNotesDemo() {
       const res = await fetch(`${API_BASE}/api/upload`, { method: "POST", body: form });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
-      // Refresh and select new class
+      // Refresh and select new class and session
       const classId = data.class_id as string;
+      const newSessionId = (data.session_id as string) || null;
       await refreshClasses(classId);
       setSelectedClassId(classId);
       await loadClassInfo(classId);
+      if (newSessionId) setSelectedSessionId(newSessionId);
       setStage("dashboard");
     } catch (err) {
       console.error(err);
@@ -566,8 +568,9 @@ function ProcessingScreen({ fileName, progress }: { fileName: string; progress: 
             <div className="text-sm text-muted-foreground">
               We’re extracting audio, sending to ASR, and generating an AI summary.
             </div>
-            <Progress value={progress} />
-            <div className="text-xs text-muted-foreground">{progress}%</div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Working…
+            </div>
           </div>
         </CardContent>
       </Card>
