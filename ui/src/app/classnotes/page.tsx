@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { marked } from "marked";
+import katex from "katex";
 import {
   Card,
   CardHeader,
@@ -123,6 +124,45 @@ function mapServerClassesToUI(list: unknown[]): ClassInfo[] {
       sessionsCount: Number(c.sessions_count || 0),
     } as ClassInfo;
   });
+}
+
+function preprocessMath(md: string): string {
+  let out = md;
+  // Convert [ ... ] that likely contain LaTeX into \[ ... \]
+  out = out.replace(/\[([\s\S]+?)\](?!\()/g, (m, inner) => {
+    // Only treat as math if it contains a LaTeX command (e.g., \int, \frac, \sum, \text, \left)
+    if (/\\(int|iint|sum|frac|lim|text|left|right|cdot|nabla|partial)/.test(inner)) {
+      return `\\[${inner}\\]`;
+    }
+    return m;
+  });
+  // Convert ( ... ) that likely contain LaTeX into \( ... \)
+  out = out.replace(/\(([^)]*\\[a-zA-Z][^)]*)\)/g, (m, inner) => {
+    return `\\(${inner}\\)`;
+  });
+  return out;
+}
+
+function renderMarkdownWithMath(md: string): string {
+  const pre = preprocessMath(md);
+  const html = marked(pre) as string;
+  // Replace inline math \( ... \)
+  const inlineProcessed = html.replace(/\\\((.+?)\\\)/g, (_, expr) => {
+    try {
+      return katex.renderToString(expr, { throwOnError: false });
+    } catch {
+      return expr;
+    }
+  });
+  // Replace block math \[ ... \]
+  const blockProcessed = inlineProcessed.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => {
+    try {
+      return `<div class=\"katex-display\">${katex.renderToString(expr, { displayMode: true, throwOnError: false })}</div>`;
+    } catch {
+      return expr;
+    }
+  });
+  return blockProcessed;
 }
 
 // ---------------------------------------------
@@ -569,7 +609,7 @@ function ProcessingScreen({ fileName, progress }: { fileName: string; progress: 
               We’re extracting audio, sending to ASR, and generating an AI summary.
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> Working…
+              <Loader2 className="h-4 w-4 animate-spin" /> Do not close this page.
             </div>
           </div>
         </CardContent>
@@ -727,7 +767,7 @@ function ClassDetail({
               {session?.summary ? (
                 <div 
                   className="text-sm leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-3 [&_li]:my-1 [&_p]:my-3 [&_strong]:font-semibold" 
-                  dangerouslySetInnerHTML={{ __html: marked(session.summary) as string }} 
+                  dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.summary) }} 
                 />
               ) : (
                 <div className="text-sm text-muted-foreground">No summary yet for this session.</div>

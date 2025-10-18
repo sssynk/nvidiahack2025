@@ -109,12 +109,14 @@ class VideoTranscriber:
                 verbatim_transcripts=True,
                 enable_word_time_offsets=False,
             )
+            # Request interim results but only commit finalized hypotheses
             streaming_config = riva.client.StreamingRecognitionConfig(
                 config=recog_config,
                 interim_results=True,
             )
 
             collected: list[str] = []
+            last_final: str = ""
             # 1600 frames chunk size matches the CLI default
             with riva.client.AudioChunkFileIterator(audio_path, 1600, None) as audio_iter:
                 for response in asr_service.streaming_response_generator(
@@ -122,11 +124,21 @@ class VideoTranscriber:
                     streaming_config=streaming_config,
                 ):
                     for result in getattr(response, "results", []):
+                        # Only append when the result is final to avoid incremental build-ups
+                        is_final = bool(getattr(result, "is_final", False))
+                        if not is_final:
+                            continue
                         alts = getattr(result, "alternatives", [])
-                        if alts:
-                            text = getattr(alts[0], "transcript", "")
-                            if text:
-                                collected.append(text)
+                        if not alts:
+                            continue
+                        text = getattr(alts[0], "transcript", "")
+                        cleaned = text.strip()
+                        if not cleaned:
+                            continue
+                        # Avoid duplicating identical finalized lines
+                        if cleaned != last_final:
+                            collected.append(cleaned)
+                            last_final = cleaned
 
             if not collected:
                 raise ValueError("No transcript generated (direct API)")
