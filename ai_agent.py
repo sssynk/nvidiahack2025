@@ -25,6 +25,18 @@ class NvidiaAIAgent:
 
     def _configure_client(self) -> None:
         provider = (os.getenv("LLM_PROVIDER") or "nvidia").strip().lower()
+        
+        # OpenAI provider
+        if provider == "openai":
+            openai_key = os.getenv("OPENAI_API_KEY")
+            if not openai_key:
+                raise ValueError("OPENAI_API_KEY environment variable is required for OpenAI provider")
+            self.client = OpenAI(api_key=openai_key)  # No custom base_url needed for OpenAI
+            self.model = os.getenv("OPENAI_MODEL") or "gpt-4o"  # Default to gpt-4o
+            self.provider = "openai"
+            return
+        
+        # Groq provider
         if provider == "groq":
             groq_key = os.getenv("GROQ_API_KEY")
             if not groq_key:
@@ -39,7 +51,7 @@ class NvidiaAIAgent:
         # Default to NVIDIA
         nvidia_key = self._init_api_key or os.getenv("NVIDIA_API_KEY")
         if not nvidia_key:
-            raise ValueError("API key is required. Set NVIDIA_API_KEY or GROQ_API_KEY environment variable")
+            raise ValueError("API key is required. Set NVIDIA_API_KEY, OPENAI_API_KEY, or GROQ_API_KEY environment variable")
         self.client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=nvidia_key)
         self.model = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
         self.provider = "nvidia"
@@ -73,8 +85,8 @@ class NvidiaAIAgent:
         """
         self._ensure_client()
         extra_body = {}
-        # Avoid provider-specific fields for Groq
-        if self.provider != "groq":
+        # Avoid provider-specific fields for Groq and OpenAI
+        if self.provider not in ("groq", "openai"):
             if use_thinking:
                 extra_body = {
                     "min_thinking_tokens": 1024,
@@ -130,7 +142,7 @@ class NvidiaAIAgent:
         """
         self._ensure_client()
         extra_body = {}
-        if self.provider != "groq":
+        if self.provider not in ("groq", "openai"):
             if use_thinking:
                 extra_body = {
                     "min_thinking_tokens": 1024,

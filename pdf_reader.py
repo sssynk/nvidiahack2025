@@ -1,0 +1,112 @@
+"""
+PDF text extraction for lecture materials
+"""
+import os
+from pathlib import Path
+from typing import Optional
+from PyPDF2 import PdfReader
+
+
+class PDFReader:
+    """Handles PDF text extraction"""
+    
+    def __init__(self):
+        """Initialize the PDF reader"""
+        pass
+    
+    def extract_text_from_pdf(self, pdf_path: str) -> str:
+        """
+        Extract all text content from a PDF file
+        
+        Args:
+            pdf_path: Path to the PDF file
+            
+        Returns:
+            Extracted text content from all pages
+        """
+        if not os.path.isfile(pdf_path):
+            raise ValueError(f"Invalid PDF file path: {pdf_path}")
+        
+        if not pdf_path.lower().endswith('.pdf'):
+            raise ValueError(f"File is not a PDF: {pdf_path}")
+        
+        try:
+            # Open and read the PDF
+            reader = PdfReader(pdf_path)
+            
+            if len(reader.pages) == 0:
+                raise ValueError("PDF has no pages")
+            
+            # Extract text from all pages
+            text_content = []
+            for page_num, page in enumerate(reader.pages, start=1):
+                page_text = page.extract_text()
+                if page_text and page_text.strip():
+                    # Add page marker for reference
+                    text_content.append(f"=== Page {page_num} ===\n{page_text.strip()}")
+            
+            if not text_content:
+                raise ValueError("No text could be extracted from PDF")
+            
+            # Join all pages with double newline
+            full_text = "\n\n".join(text_content)
+            
+            return full_text
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract text from PDF: {str(e)}")
+    
+    def get_pdf_info(self, pdf_path: str) -> dict:
+        """
+        Get metadata information about a PDF
+        
+        Args:
+            pdf_path: Path to the PDF file
+            
+        Returns:
+            Dictionary with PDF metadata
+        """
+        try:
+            reader = PdfReader(pdf_path)
+            metadata = reader.metadata or {}
+            
+            return {
+                "num_pages": len(reader.pages),
+                "title": metadata.get("/Title", "Unknown"),
+                "author": metadata.get("/Author", "Unknown"),
+                "subject": metadata.get("/Subject", "Unknown"),
+                "creator": metadata.get("/Creator", "Unknown"),
+            }
+        except Exception as e:
+            return {
+                "error": f"Failed to read PDF metadata: {str(e)}"
+            }
+    
+    def validate_pdf(self, pdf_path: str) -> bool:
+        """
+        Check if a file is a valid PDF
+        
+        Args:
+            pdf_path: Path to the PDF file
+            
+        Returns:
+            True if valid PDF, False otherwise
+        """
+        try:
+            if not os.path.isfile(pdf_path):
+                return False
+            
+            if not pdf_path.lower().endswith('.pdf'):
+                return False
+            
+            # Try to open it
+            reader = PdfReader(pdf_path)
+            
+            # Check if it has at least one page
+            if len(reader.pages) == 0:
+                return False
+            
+            return True
+        except Exception:
+            return False
+

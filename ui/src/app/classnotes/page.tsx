@@ -470,8 +470,8 @@ function UploadScreen({
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
                 <UploadCloud className="h-7 w-7 text-primary" />
               </div>
-              <div className="text-lg font-medium">Drop a video here, or click to browse</div>
-              <p className="mt-1 text-sm text-muted-foreground">.mp4, .mov up to 2 GB</p>
+              <div className="text-lg font-medium">Drop a file here, or click to browse</div>
+              <p className="mt-1 text-sm text-muted-foreground">Videos (.mp4, .mov), Audio (.mp3), or PDFs up to 2 GB</p>
               <div className="mt-6 grid w-full gap-3 text-left">
                 <div className="flex items-center gap-3">
                   <label className="w-[120px] text-sm text-muted-foreground">Class</label>
@@ -498,13 +498,13 @@ function UploadScreen({
               </div>
               <div className="mt-6 flex items-center gap-3">
                 <Button onClick={() => inputRef.current?.click()}>
-                  <PlayCircle className="mr-2 h-4 w-4" /> Choose a video
+                  <PlayCircle className="mr-2 h-4 w-4" /> Choose a file
                 </Button>
               </div>
               <input
                 ref={inputRef}
                 type="file"
-                accept="video/*"
+                accept="video/*,audio/*,.pdf"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;
@@ -756,8 +756,8 @@ function ClassDetail({
                   ))}
                 </select>
               ) : null}
-              <Button variant="ghost" size="sm" onClick={onUploadForClass} title="Upload new lecture">
-                <UploadCloud className="mr-2 h-4 w-4" /> Upload new lecture
+              <Button variant="ghost" size="sm" onClick={onUploadForClass} title="Upload new session">
+                <UploadCloud className="mr-2 h-4 w-4" /> Upload session
               </Button>
             </div>
           </div>
@@ -766,8 +766,8 @@ function ClassDetail({
         <CardContent>
           {!sessions.length ? (
               <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">No lectures yet for this class.</div>
-              <Button onClick={onUploadEmpty}><UploadCloud className="mr-2 h-4 w-4" /> Upload a lecture</Button>
+              <div className="text-sm text-muted-foreground">No sessions yet for this class.</div>
+              <Button onClick={onUploadEmpty}><UploadCloud className="mr-2 h-4 w-4" /> Upload session</Button>
             </div>
           ) : (
           <>

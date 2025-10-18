@@ -6,8 +6,9 @@ AI-powered lecture transcription and analysis tool using NVIDIA APIs. Organize c
 
 - 📚 **Class Organization** - Create and manage multiple classes
 - 🎥 **Video Transcription** - Auto-transcribe lectures with NVIDIA Riva ASR
-- ✨ **AI Summaries** - Generate summaries with NVIDIA Nemotron
-- 💬 **Chat Interface** - Ask questions about your lectures
+- 📄 **PDF Support** - Upload and analyze lecture slides, readings, and documents
+- ✨ **AI Summaries** - Generate summaries with GPT, NVIDIA Nemotron, or Groq
+- 💬 **Chat Interface** - Ask questions about your lectures and PDFs
 - 🔍 **Multi-Session Search** - Query across all sessions in a class
 - 🎨 **Modern UI** - Beautiful Next.js + shadcn/ui interface
 
@@ -82,13 +83,65 @@ See [DOCKER.md](DOCKER.md) for detailed Docker instructions.
    ```
    Frontend runs on http://localhost:3000
 
+## Configuration
+
+### LLM Provider Options
+
+ClassNotes AI supports multiple LLM providers. Configure via environment variables:
+
+```bash
+# Choose your provider (default: nvidia)
+LLM_PROVIDER=openai  # Options: nvidia, openai, groq
+
+# OpenAI (if using openai provider)
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4o  # Optional, defaults to gpt-4o
+
+# NVIDIA (if using nvidia provider)
+NVIDIA_API_KEY=your_nvidia_api_key_here
+
+# Groq (if using groq provider)
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+**OpenAI Models:**
+- `gpt-4o` - Latest GPT-4 Optimized (default, recommended)
+- `gpt-4o-mini` - Faster and cheaper variant
+- `gpt-4-turbo` - Previous generation
+- `gpt-3.5-turbo` - Budget option
+
+**ASR Options:**
+For audio transcription, you can also configure:
+```bash
+ASR_MODE=free  # Options: free (NVIDIA Riva), fast (Groq Whisper - requires GROQ_API_KEY)
+```
+
+### Using OpenAI
+
+To use OpenAI instead of NVIDIA:
+
+1. Get an API key from [OpenAI](https://platform.openai.com/api-keys)
+2. Set environment variables:
+   ```bash
+   export LLM_PROVIDER=openai
+   export OPENAI_API_KEY=your_openai_key_here
+   ```
+3. Start the backend as normal
+
 ## Usage
 
 1. **Create Classes** - On first launch, add your classes (e.g., "CS 229 - Machine Learning")
-2. **Upload Lectures** - Select a class and upload a video file
-3. **View Summaries** - AI automatically generates summaries for each lecture
-4. **Chat** - Ask questions about the lecture content
-5. **Browse Sessions** - View all lectures for each class
+2. **Upload Content** - Select a class and upload video files or PDFs (slides, readings)
+3. **View Summaries** - AI automatically generates summaries for each session
+4. **Chat** - Ask questions about your lectures and documents
+5. **Browse Sessions** - View all sessions (videos and PDFs) for each class
+
+### Supported File Types
+- **Videos**: `.mp4`, `.avi`, `.mov`, `.mkv`, `.webm`, `.flv`
+- **Audio**: `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`
+- **Documents**: `.pdf` (lecture slides, readings, textbooks)
+
+See [PDF_SUPPORT.md](PDF_SUPPORT.md) for details on PDF features.
 
 ## Tech Stack
 

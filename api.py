@@ -37,12 +37,16 @@ def generate_class_id(base: str) -> str:
 
 
 @app.post("/api/upload")
-async def upload_video(
+async def upload_file(
     file: UploadFile = File(...),
     class_id: str = Form(...),
     session_title: str = Form("") ,
     language_code: str = Form("en-US")
 ):
+    """
+    Upload and process a file (video or PDF)
+    Automatically detects file type and processes accordingly
+    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="Missing filename")
 
@@ -52,18 +56,31 @@ async def upload_video(
         shutil.copyfileobj(file.file, f)
 
     base = os.path.splitext(file.filename)[0]
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
     if not session_title:
         session_title = base.replace("_", " ").replace("-", " ").title()
 
     try:
-        result = agent.process_video(
-            video_path=dest_path,
-            class_id=class_id,
-            session_title=session_title,
-            language_code=language_code,
-            auto_summarize=True,
-        )
-        return {"ok": True, **result}
+        # Check if it's a PDF
+        if file_ext == ".pdf":
+            result = agent.process_pdf(
+                pdf_path=dest_path,
+                class_id=class_id,
+                session_title=session_title,
+                auto_summarize=True,
+            )
+            return {"ok": True, "file_type": "pdf", **result}
+        else:
+            # Process as video/audio
+            result = agent.process_video(
+                video_path=dest_path,
+                class_id=class_id,
+                session_title=session_title,
+                language_code=language_code,
+                auto_summarize=True,
+            )
+            return {"ok": True, "file_type": "video", **result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -106,8 +123,8 @@ def update_settings(asr_mode: str = Form(""), llm_provider: str = Form("")):
             updates["asr_mode"] = mode
         if llm_provider:
             prov = llm_provider.lower()
-            if prov not in ("nvidia", "groq"):
-                raise HTTPException(status_code=400, detail="Invalid llm_provider; use 'nvidia' or 'groq'")
+            if prov not in ("nvidia", "groq", "openai"):
+                raise HTTPException(status_code=400, detail="Invalid llm_provider; use 'nvidia', 'openai', or 'groq'")
             updates["llm_provider"] = prov
         if not updates:
             return {"ok": True, "settings": settings_mgr.get_settings()}

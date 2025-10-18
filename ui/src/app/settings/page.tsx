@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [asrMode, setAsrMode] = useState<"free" | "fast">("free");
-  const [llmProvider, setLlmProvider] = useState<"nvidia" | "groq">("nvidia");
+  const [llmProvider, setLlmProvider] = useState<"nvidia" | "groq" | "openai">("nvidia");
 
   useEffect(() => {
     (async () => {
@@ -24,7 +24,13 @@ export default function SettingsPage() {
         const mode = (data?.settings?.asr_mode as string | undefined)?.toLowerCase() || "free";
         setAsrMode(mode === "fast" ? "fast" : "free");
         const prov = (data?.settings?.llm_provider as string | undefined)?.toLowerCase() || "nvidia";
-        setLlmProvider(prov === "groq" ? "groq" : "nvidia");
+        if (prov === "openai") {
+          setLlmProvider("openai");
+        } else if (prov === "groq") {
+          setLlmProvider("groq");
+        } else {
+          setLlmProvider("nvidia");
+        }
       } catch {
         // keep default
       } finally {
@@ -77,11 +83,15 @@ export default function SettingsPage() {
 
           <div>
             <div className="mb-2 font-medium">LLM provider</div>
-            <RadioGroup value={llmProvider} onValueChange={(v) => setLlmProvider((v as "nvidia" | "groq") || "nvidia")}
+            <RadioGroup value={llmProvider} onValueChange={(v) => setLlmProvider((v as "nvidia" | "groq" | "openai") || "nvidia")}
               className="grid gap-2">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem id="llm-nvidia" value="nvidia" />
-                <Label htmlFor="llm-nvidia">NVIDIA (default) — Nemotron</Label>
+                <Label htmlFor="llm-nvidia">NVIDIA — Nemotron (free tier)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="llm-openai" value="openai" />
+                <Label htmlFor="llm-openai">OpenAI — GPT-4o/GPT-4o-mini</Label>
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem id="llm-groq" value="groq" />
@@ -89,7 +99,7 @@ export default function SettingsPage() {
               </div>
             </RadioGroup>
             <div className="mt-2 text-xs text-muted-foreground">
-              Groq mode requires GROQ_API_KEY env configured server-side.
+              OpenAI requires OPENAI_API_KEY env. Groq requires GROQ_API_KEY env. Configure server-side.
             </div>
           </div>
 

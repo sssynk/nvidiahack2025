@@ -20,8 +20,7 @@ class VideoTranscriber:
             api_key: NVIDIA API key. If not provided, will look for NVIDIA_API_KEY env variable
         """
         self.api_key = api_key or os.getenv("NVIDIA_API_KEY")
-        if not self.api_key:
-            raise ValueError("API key is required. Set NVIDIA_API_KEY environment variable or pass api_key parameter")
+        # Note: API key check moved to transcribe_audio() - allows initialization without key for PDF-only usage
         
         self.asr_function_id = "d8dd4e9b-fbf5-4fb0-9dba-8cf436c8d965"
         self.server = "grpc.nvcf.nvidia.com:443"
@@ -85,6 +84,10 @@ class VideoTranscriber:
         """
         if not os.path.isfile(audio_path):
             raise ValueError(f"Invalid audio file path: {audio_path}")
+        
+        # Check API key only when actually transcribing
+        if not self.api_key and os.getenv("ASR_MODE", "free").lower() != "fast":
+            raise ValueError("NVIDIA API key is required for transcription. Set NVIDIA_API_KEY environment variable")
 
         # If env requests FAST mode, use Groq Whisper via OpenAI client
         # Modes: FREE (default) or FAST (paid)
