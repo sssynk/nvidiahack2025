@@ -89,6 +89,7 @@ class ClassAIAgent:
                     "\"questions\": \"1-2 questions to ask about the content. do not use list format for these\"\n"
                     "}\n\n"
                     "Include ALL keys and follow valid JSON.\n\n"
+                    "DO NOT INCLUDE ANY OTHER TEXT OUTSIDE OF THE JSON OBJECT. DO NOT ESCAPE ANY QUOTES OR OTHER CHARACTERS IT WILL BREAK THE JSON PARSER."
                     f"Transcript:\n{session['content']}"
                 )
             }
@@ -110,7 +111,13 @@ class ClassAIAgent:
         )
         logger.debug("INSIGHTS prompt (first 2000 chars): %s", _prompt_user[:2000])
         t0 = time.time()
-        raw_insights = self.agent.chat_non_stream(insights_prompt, temperature=_temp, max_tokens=_max, use_thinking=_thinking)
+        raw_insights = self.agent.chat_non_stream(
+            insights_prompt,
+            temperature=_temp,
+            max_tokens=_max,
+            use_thinking=_thinking,
+            response_format={"type": "json_object"},
+        )
         t1 = time.time()
         logger.info(
             "INSIGHTS done class_id=%s session_id=%s dur_ms=%d response_len=%d",

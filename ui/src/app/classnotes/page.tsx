@@ -918,7 +918,7 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
           ) : (
             <div className="space-y-4 pr-4">
               {messages.map((m, i) => (
-                <div key={i} className={classNames("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}>
+                <div key={i} className={classNames("flex gap-3", m.role === "user" ? "justify-end" : "justify-start")}> 
                   {m.role === "assistant" && (
                     <Avatar className="h-6 w-6 flex-shrink-0 self-start">
                       <AvatarFallback>AI</AvatarFallback>
@@ -926,11 +926,14 @@ function ChatbotPanel({ classInfo, classId }: { classInfo: ClassInfo; classId: s
                   )}
                   <div
                     className={classNames(
-                      "max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words",
+                      "max-w-[80%] rounded-2xl px-3 py-2 text-sm break-words",
                       m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                     )}
                   >
-                    {m.text}
+                    <div
+                      className="leading-relaxed [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-1 [&_p]:my-2 [&_strong]:font-semibold"
+                      dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(m.text) }}
+                    />
                   </div>
                 </div>
               ))}

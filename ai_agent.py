@@ -3,7 +3,7 @@ Base AI Agent using NVIDIA API for class transcript processing
 """
 from openai import OpenAI
 import os
-from typing import List, Dict, Optional, Generator
+from typing import List, Dict, Optional, Generator, Any
 
 
 class NvidiaAIAgent:
@@ -113,7 +113,8 @@ class NvidiaAIAgent:
         messages: List[Dict[str, str]],
         temperature: float = 0.6,
         max_tokens: int = 2048,
-        use_thinking: bool = True
+        use_thinking: bool = True,
+        response_format: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Send a non-streaming chat request to the NVIDIA API
@@ -139,19 +140,23 @@ class NvidiaAIAgent:
                 extra_body = {
                     "use_thinking": False
                 }
-        
+
         assert self.client is not None
-        completion = self.client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            temperature=temperature,
-            top_p=0.95,
-            max_tokens=max_tokens,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stream=False,
-            extra_body=extra_body
-        )
+        kwargs: Dict[str, Any] = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "top_p": 0.95,
+            "max_tokens": max_tokens,
+            "frequency_penalty": 0,
+            "presence_penalty": 0,
+            "stream": False,
+            "extra_body": extra_body,
+        }
+        if response_format is not None:
+            kwargs["response_format"] = response_format
+
+        completion = self.client.chat.completions.create(**kwargs)
         
         return completion.choices[0].message.content
 

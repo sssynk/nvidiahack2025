@@ -10,6 +10,9 @@ services:
       - "8000:8000"
     environment:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - ASR_MODE=${ASR_MODE}
+      - LLM_PROVIDER=${LLM_PROVIDER}
     volumes:
       - ./transcripts:/app/transcripts
       - ./uploads:/app/uploads
