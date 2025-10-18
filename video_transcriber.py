@@ -26,6 +26,14 @@ class VideoTranscriber:
         self.asr_function_id = "d8dd4e9b-fbf5-4fb0-9dba-8cf436c8d965"
         self.server = "grpc.nvcf.nvidia.com:443"
         self.riva_script = os.path.join(os.path.dirname(__file__), "python-clients/scripts/asr/transcribe_file.py")
+        # Optional Groq client for fast (paid) mode
+        self._groq_client = None
+        self._groq_err: Optional[str] = None
+        try:
+            from groq import Groq  # type: ignore
+            self._groq_client = Groq()
+        except Exception as e:
+            self._groq_err = str(e)
     
     def extract_audio_from_video(self, video_path: str, output_path: Optional[str] = None) -> str:
         """
@@ -84,6 +92,35 @@ class VideoTranscriber:
         """
         if not os.path.isfile(audio_path):
             raise ValueError(f"Invalid audio file path: {audio_path}")
+
+        # If Groq client is available and env overrides as FAST, use Groq Whisper
+        # Modes: FREE (default) or FAST (paid)
+        asr_mode = (os.getenv("ASR_MODE") or "free").lower()
+        if asr_mode == "fast" and self._groq_client is not None:
+            try:
+                print("[ASR] Using Groq Whisper (fast mode)")
+                # Groq Whisper expects original file extension like .m4a or .wav
+                # We pass the file bytes and model name. Response contains .text
+                with open(audio_path, "rb") as f:
+                    file_bytes = f.read()
+                filename = audio_path
+                transcription = self._groq_client.audio.transcriptions.create(
+                    file=(filename, file_bytes),
+                    model="whisper-large-v3-turbo",
+                    temperature=0,
+                    response_format="verbose_json",
+                )
+                text = getattr(transcription, "text", None) or getattr(transcription, "text", "")
+                if not text:
+                    # Some SDKs return .segments with nested text; try to concatenate
+                    segments = getattr(transcription, "segments", None)
+                    if isinstance(segments, list):
+                        text = "\n".join([getattr(s, "text", "") for s in segments if getattr(s, "text", "")])
+                if not text:
+                    raise ValueError("Groq: No text in transcription response")
+                return text
+            except Exception as e:
+                print(f"[ASR] Groq fast mode failed, falling back to Riva: {e}")
         
         # First try using the Python Riva client directly (preferable when available)
         try:

@@ -4,6 +4,10 @@ Class AI Agent for transcript summarization and Q&A across sessions per class
 from ai_agent import NvidiaAIAgent
 from classes_manager import ClassesManager
 from typing import Optional, List, Dict
+import time
+import logging
+
+logger = logging.getLogger("class_agent")
 
 
 class ClassAIAgent:
@@ -67,7 +71,78 @@ class ClassAIAgent:
         if not session:
             raise ValueError(f"Session not found for class_id={class_id}, session_id={session_id}")
 
-        messages = [
+        # First, derive structured insights JSON (most_important, small_details, action_items, questions)
+        insights_prompt = [
+            {
+                "role": "system",
+                "content": "/no_think You extract concise lecture insights for UI cards. Return STRICT JSON only, no prose."
+            },
+            {
+                "role": "user",
+                "content": (
+                    "You will receive a transcript from class. Return a json dictionary with 4 objects: Most Important, Small Details, Action Items, and Questions to Ask.\n\n"
+                    "Format exactly as:\n\n"
+                    "{\n"
+                    "\"most_important\": \"a markdown formatted list of 2-3 important things. NO MORE than 3 items and do not include any other text outside of these points\",\n"
+                    "\"small_details\": \"a markdown formatted list of 2-3 small things. NO MORE than 3 items and do not include any other text outside of these points\",\n"
+                    "\"action_items\": \"a markdown formatted list of 2-3 action items from the lecture. NO MORE than 3 items and do not include any other text outside of these points\",\n"
+                    "\"questions\": \"1-2 questions to ask about the content. do not use list format for these\"\n"
+                    "}\n\n"
+                    "Include ALL keys and follow valid JSON.\n\n"
+                    f"Transcript:\n{session['content']}"
+                )
+            }
+        ]
+
+        # Verbose logging around insights generation only
+        try:
+            transcript_text = session['content'] or ''
+        except Exception:
+            transcript_text = ''
+        _model = getattr(self.agent, 'model', None)
+        _temp = 0.2
+        _max = 800
+        _thinking = False
+        _prompt_user = insights_prompt[1].get('content', '') if len(insights_prompt) > 1 else ''
+        logger.info(
+            "INSIGHTS start class_id=%s session_id=%s model=%s temp=%.2f max_tokens=%d use_thinking=%s transcript_len=%d prompt_len=%d",
+            class_id, session_id, _model, _temp, _max, _thinking, len(transcript_text), len(_prompt_user),
+        )
+        logger.debug("INSIGHTS prompt (first 2000 chars): %s", _prompt_user[:2000])
+        t0 = time.time()
+        raw_insights = self.agent.chat_non_stream(insights_prompt, temperature=_temp, max_tokens=_max, use_thinking=_thinking)
+        t1 = time.time()
+        logger.info(
+            "INSIGHTS done class_id=%s session_id=%s dur_ms=%d response_len=%d",
+            class_id, session_id, int((t1 - t0) * 1000), len(raw_insights or ""),
+        )
+        logger.debug("INSIGHTS raw response (first 4000 chars): %s", (raw_insights or '')[:4000])
+        insights: Dict = {}
+        try:
+            import json as _json
+            insights = _json.loads(raw_insights)
+            logger.info(f"INSIGHTS: {insights}")
+        except Exception as e:
+            logger.warning(
+                "INSIGHTS parse_failed class_id=%s session_id=%s error=%s",
+                class_id, session_id, str(e),
+                exc_info=True,
+            )
+            insights = {}
+
+        if insights:
+            self.classes_manager.update_session_insights(class_id, session_id, insights)
+            try:
+                keys = list(insights.keys())
+            except Exception:
+                keys = []
+            logger.info(
+                "INSIGHTS saved class_id=%s session_id=%s keys=%s",
+                class_id, session_id, ",".join(keys),
+            )
+
+        # Then, generate the main summary
+        summary_messages = [
             {
                 "role": "system",
                 "content": "/no_think You are an expert at summarizing educational content. Create clear, concise, and comprehensive summaries of lecture sessions. Include key topics, main concepts, important points."
@@ -78,7 +153,7 @@ class ClassAIAgent:
             }
         ]
 
-        summary = self.agent.chat_non_stream(messages, temperature=0.5)
+        summary = self.agent.chat_non_stream(summary_messages, temperature=0.5)
         self.classes_manager.update_session_summary(class_id, session_id, summary)
         return summary
     

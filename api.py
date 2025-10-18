@@ -8,6 +8,7 @@ import uuid
 from datetime import datetime
 
 from integrated_agent import IntegratedClassAgent
+from settings_manager import SettingsManager
 
 app = FastAPI(title="Class AI Agent API")
 
@@ -24,6 +25,7 @@ app.add_middleware(
 # Initialize agent
 api_key = os.getenv("NVIDIA_API_KEY")
 agent = IntegratedClassAgent(api_key=api_key)
+settings_mgr = SettingsManager()
 
 UPLOAD_DIR = os.path.join(os.getcwd(), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -86,6 +88,38 @@ def get_class(class_id: str):
     if not info:
         raise HTTPException(status_code=404, detail="Class not found")
     return {"ok": True, "class": info}
+
+
+@app.get("/api/settings")
+def get_settings():
+    return {"ok": True, "settings": settings_mgr.get_settings()}
+
+
+@app.post("/api/settings")
+def update_settings(asr_mode: str = Form(""), llm_provider: str = Form("")):
+    try:
+        updates = {}
+        if asr_mode:
+            mode = asr_mode.lower()
+            if mode not in ("free", "fast"):
+                raise HTTPException(status_code=400, detail="Invalid asr_mode; use 'free' or 'fast'")
+            updates["asr_mode"] = mode
+        if llm_provider:
+            prov = llm_provider.lower()
+            if prov not in ("nvidia", "groq"):
+                raise HTTPException(status_code=400, detail="Invalid llm_provider; use 'nvidia' or 'groq'")
+            updates["llm_provider"] = prov
+        if not updates:
+            return {"ok": True, "settings": settings_mgr.get_settings()}
+        out = settings_mgr.update_settings(updates)
+        # Also reflect provider to env so current process switches without restart
+        if "llm_provider" in updates:
+            os.environ["LLM_PROVIDER"] = updates["llm_provider"]
+        return {"ok": True, "settings": out}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/api/summary/{class_id}/{session_id}")

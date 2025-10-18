@@ -7,24 +7,48 @@ from typing import List, Dict, Optional, Generator
 
 
 class NvidiaAIAgent:
-    """Base AI agent using NVIDIA's API"""
-    
+    """AI agent that can use NVIDIA or Groq (OpenAI-compatible) based on configuration."""
+
     def __init__(self, api_key: Optional[str] = None):
         """
-        Initialize the NVIDIA AI Agent
-        
-        Args:
-            api_key: NVIDIA API key. If not provided, will look for NVIDIA_API_KEY env variable
+        Initialize the AI Agent.
+
+        Provider selection order:
+        - LLM_PROVIDER env ("groq" or "nvidia")
+        - Default: nvidia
         """
-        self.api_key = api_key or os.getenv("NVIDIA_API_KEY")
-        if not self.api_key:
-            raise ValueError("API key is required. Set NVIDIA_API_KEY environment variable or pass api_key parameter")
-        
-        self.client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=self.api_key
-        )
+        self._init_api_key = api_key
+        self.client: OpenAI | None = None
+        self.model: str = ""
+        self.provider: str = ""
+        self._configure_client()
+
+    def _configure_client(self) -> None:
+        provider = (os.getenv("LLM_PROVIDER") or "nvidia").strip().lower()
+        if provider == "groq":
+            groq_key = os.getenv("GROQ_API_KEY")
+            if not groq_key:
+                # Fallback to NVIDIA if GROQ_API_KEY missing
+                provider = "nvidia"
+            else:
+                self.client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=groq_key)
+                self.model = "openai/gpt-oss-20b"
+                self.provider = "groq"
+                return
+
+        # Default to NVIDIA
+        nvidia_key = self._init_api_key or os.getenv("NVIDIA_API_KEY")
+        if not nvidia_key:
+            raise ValueError("API key is required. Set NVIDIA_API_KEY or GROQ_API_KEY environment variable")
+        self.client = OpenAI(base_url="https://integrate.api.nvidia.com/v1", api_key=nvidia_key)
         self.model = "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+        self.provider = "nvidia"
+
+    def _ensure_client(self) -> None:
+        # Reconfigure if provider changed at runtime
+        current = (os.getenv("LLM_PROVIDER") or "nvidia").strip().lower()
+        if current != self.provider:
+            self._configure_client()
     
     def chat(
         self, 
@@ -47,17 +71,21 @@ class NvidiaAIAgent:
         Yields:
             Response chunks from the API
         """
+        self._ensure_client()
         extra_body = {}
-        if use_thinking:
-            extra_body = {
-                "min_thinking_tokens": 1024,
-                "max_thinking_tokens": 2048
-            }
-        else:
-            extra_body = {
-                "use_thinking": False
-            }
+        # Avoid provider-specific fields for Groq
+        if self.provider != "groq":
+            if use_thinking:
+                extra_body = {
+                    "min_thinking_tokens": 1024,
+                    "max_thinking_tokens": 2048
+                }
+            else:
+                extra_body = {
+                    "use_thinking": False
+                }
         
+        assert self.client is not None
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -99,17 +127,20 @@ class NvidiaAIAgent:
         Returns:
             Complete response from the API
         """
+        self._ensure_client()
         extra_body = {}
-        if use_thinking:
-            extra_body = {
-                "min_thinking_tokens": 1024,
-                "max_thinking_tokens": 2048
-            }
-        else:
-            extra_body = {
-                "use_thinking": False
-            }
+        if self.provider != "groq":
+            if use_thinking:
+                extra_body = {
+                    "min_thinking_tokens": 1024,
+                    "max_thinking_tokens": 2048
+                }
+            else:
+                extra_body = {
+                    "use_thinking": False
+                }
         
+        assert self.client is not None
         completion = self.client.chat.completions.create(
             model=self.model,
             messages=messages,

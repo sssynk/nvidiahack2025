@@ -6,6 +6,7 @@ from video_transcriber import VideoTranscriber
 from typing import Optional, Dict
 import os
 from pathlib import Path
+from settings_manager import SettingsManager
 
 
 class IntegratedClassAgent:
@@ -23,6 +24,7 @@ class IntegratedClassAgent:
         """
         self.class_agent = ClassAIAgent(api_key=api_key, storage_path=storage_path)
         self.transcriber = VideoTranscriber(api_key=api_key)
+        self.settings = SettingsManager(storage_path)
     
     def process_video(
         self,
@@ -49,8 +51,15 @@ class IntegratedClassAgent:
         if not session_title:
             session_title = Path(video_path).stem.replace('_', ' ').replace('-', ' ').title()
         
-        # Transcribe the video
+        # Transcribe the video using selected ASR mode (env or settings.json)
         print(f"Processing video: {video_path}")
+        asr_mode = (os.getenv("ASR_MODE") or self.settings.get("asr_mode", "free")).lower()
+        # Allow runtime override by setting ASR_MODE env; otherwise use stored setting
+        if asr_mode not in ("free", "fast"):
+            asr_mode = "free"
+        # Pass through via environment so VideoTranscriber can switch
+        os.environ["ASR_MODE"] = asr_mode
+        print(f"ASR mode: {asr_mode}")
         transcript = self.transcriber.transcribe_with_fallback(video_path, language_code)
         
         if not transcript or not transcript.strip():

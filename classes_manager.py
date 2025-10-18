@@ -137,6 +137,7 @@ class ClassesManager:
             "title": title or f"Session {session_id}",
             "content": content,
             "summary": None,
+            "insights": None,
             "created_at": _now_iso(),
             "metadata": metadata or {},
         }
@@ -184,6 +185,15 @@ class ClassesManager:
         if not sess:
             return
         sess["summary"] = summary
+        fpath = os.path.join(self._sessions_dir(class_id), f"{session_id}.json")
+        with open(fpath, "w") as f:
+            json.dump(sess, f, indent=2)
+
+    def update_session_insights(self, class_id: str, session_id: str, insights: Dict):
+        sess = self.get_session(class_id, session_id)
+        if not sess:
+            return
+        sess["insights"] = insights
         fpath = os.path.join(self._sessions_dir(class_id), f"{session_id}.json")
         with open(fpath, "w") as f:
             json.dump(sess, f, indent=2)

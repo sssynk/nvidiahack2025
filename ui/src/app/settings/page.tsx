@@ -1,0 +1,105 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
+
+export default function SettingsPage() {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [asrMode, setAsrMode] = useState<"free" | "fast">("free");
+  const [llmProvider, setLlmProvider] = useState<"nvidia" | "groq">("nvidia");
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/api/settings`);
+        const data = await res.json();
+        const mode = (data?.settings?.asr_mode as string | undefined)?.toLowerCase() || "free";
+        setAsrMode(mode === "fast" ? "fast" : "free");
+        const prov = (data?.settings?.llm_provider as string | undefined)?.toLowerCase() || "nvidia";
+        setLlmProvider(prov === "groq" ? "groq" : "nvidia");
+      } catch {
+        // keep default
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const form = new FormData();
+      form.append("asr_mode", asrMode);
+      form.append("llm_provider", llmProvider);
+      const res = await fetch(`${API_BASE}/api/settings`, { method: "POST", body: form });
+      if (!res.ok) throw new Error(await res.text());
+    } catch {
+      // no-op UI for now
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl p-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Settings</CardTitle>
+          <CardDescription>Configure your transcription and AI options.</CardDescription>
+        </CardHeader>
+        <Separator />
+        <CardContent className="space-y-6 pt-4">
+          <div>
+            <div className="mb-2 font-medium">ASR mode</div>
+            <RadioGroup value={asrMode} onValueChange={(v) => setAsrMode((v as "free" | "fast") || "free")}
+              className="grid gap-2">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="asr-free" value="free" />
+                <Label htmlFor="asr-free">Free (slow) — NVIDIA Riva (lower quality and slower)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="asr-fast" value="fast" />
+                <Label htmlFor="asr-fast">Fast (paid) — Groq Whisper (higher quality and faster)</Label>
+              </div>
+            </RadioGroup>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Fast mode uses Groq Whisper and requires GROQ_API_KEY env configured server-side.
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 font-medium">LLM provider</div>
+            <RadioGroup value={llmProvider} onValueChange={(v) => setLlmProvider((v as "nvidia" | "groq") || "nvidia")}
+              className="grid gap-2">
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="llm-nvidia" value="nvidia" />
+                <Label htmlFor="llm-nvidia">NVIDIA (default) — Nemotron</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem id="llm-groq" value="groq" />
+                <Label htmlFor="llm-groq">Groq — openai/gpt-oss-20b</Label>
+              </div>
+            </RadioGroup>
+            <div className="mt-2 text-xs text-muted-foreground">
+              Groq mode requires GROQ_API_KEY env configured server-side.
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button onClick={save} disabled={saving || loading}>Save</Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+

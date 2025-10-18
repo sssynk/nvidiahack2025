@@ -414,6 +414,11 @@ function TopNav({ onReset, onGoDashboard }: { onReset: () => void; onGoDashboard
           <Image src="/nvidialogo.png" alt="NVIDIA" width={120} height={24} priority />
         </button>
         <div className="flex items-center gap-2">
+          <a href="/settings" className="hidden sm:inline-flex">
+            <Button variant="outline" size="sm">
+              <Settings className="mr-2 h-4 w-4" /> Settings
+            </Button>
+          </a>
           <Button variant="outline" size="sm" onClick={onGoDashboard}>
             Dashboard
           </Button>
@@ -689,6 +694,12 @@ interface SessionData {
   created_at: string;
   content: string;
   summary?: string;
+  insights?: {
+    most_important?: string;
+    small_details?: string;
+    action_items?: string;
+    questions?: string;
+  } | null;
 }
 
 function ClassDetail({
@@ -757,7 +768,39 @@ function ClassDetail({
               <Button onClick={onUploadEmpty}><UploadCloud className="mr-2 h-4 w-4" /> Upload a lecture</Button>
             </div>
           ) : (
-          <Tabs defaultValue="summary" className="w-full">
+          <>
+            {session?.insights && (session.insights.most_important || session.insights.small_details || session.insights.action_items || session.insights.questions) ? (
+              <div className="mb-4 overflow-x-auto">
+                <div className="flex gap-3 pr-6">
+                  {session.insights.most_important ? (
+                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4 text-primary" /> Most important</div>
+                      <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.most_important) }} />
+                    </div>
+                  ) : null}
+                  {session.insights.small_details ? (
+                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4 text-amber-500" /> Small details</div>
+                      <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.small_details) }} />
+                    </div>
+                  ) : null}
+                  {session.insights.action_items ? (
+                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Settings className="h-4 w-4 text-emerald-600" /> Action items</div>
+                      <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.action_items) }} />
+                    </div>
+                  ) : null}
+                  {session.insights.questions ? (
+                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4 text-blue-600" /> Questions to ask</div>
+                      <div className="prose prose-sm max-w-none whitespace-pre-wrap">{session.insights.questions}</div>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <Tabs defaultValue="summary" className="w-full">
             <TabsList>
               <TabsTrigger value="summary">Summary</TabsTrigger>
               <TabsTrigger value="transcript">Transcript</TabsTrigger>
@@ -779,7 +822,8 @@ function ClassDetail({
                 <div className="whitespace-pre-wrap text-sm leading-relaxed">{session?.content || ''}</div>
               </ScrollArea>
             </TabsContent>
-          </Tabs>
+            </Tabs>
+          </>
           )}
         </CardContent>
       </Card>
