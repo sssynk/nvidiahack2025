@@ -378,20 +378,22 @@ export default function ClassNotesDemo() {
                 onAddClass={() => setStage("onboarding")}
               />
 
-              <ClassDetail
-                classInfo={selectedClass}
-                serverClass={selectedClassInfo}
-                selectedSessionId={selectedSessionId}
-                onSelectSession={setSelectedSessionId}
-                onUploadEmpty={() => {
-                  setUploadClassId(selectedClassId);
-                  setStage("upload");
-                }}
-                onUploadForClass={() => {
-                  setUploadClassId(selectedClassId);
-                  setStage("upload");
-                }}
-              />
+              <div className="min-w-0">
+                <ClassDetail
+                  classInfo={selectedClass}
+                  serverClass={selectedClassInfo}
+                  selectedSessionId={selectedSessionId}
+                  onSelectSession={setSelectedSessionId}
+                  onUploadEmpty={() => {
+                    setUploadClassId(selectedClassId);
+                    setStage("upload");
+                  }}
+                  onUploadForClass={() => {
+                    setUploadClassId(selectedClassId);
+                    setStage("upload");
+                  }}
+                />
+              </div>
 
               <ChatbotPanel classInfo={selectedClass} classId={selectedClassId} />
             </motion.div>
@@ -608,7 +610,7 @@ function ProcessingScreen({ fileName, progress }: { fileName: string; progress: 
           </CardTitle>
           <CardDescription>{fileName}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="min-w-0 overflow-hidden">
           <div className="space-y-4">
             <div className="text-sm text-muted-foreground">
               We’re extracting audio, sending to ASR, and generating an AI summary.
@@ -770,32 +772,34 @@ function ClassDetail({
           ) : (
           <>
             {session?.insights && (session.insights.most_important || session.insights.small_details || session.insights.action_items || session.insights.questions) ? (
-              <div className="mb-4 overflow-x-auto">
-                <div className="flex gap-3 pr-6">
+              <div className="mb-4">
+                <div className="-mx-4 overflow-x-auto px-4">
+                  <div className="flex gap-3 pr-6 min-w-0">
                   {session.insights.most_important ? (
-                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                    <div className="w-[280px] shrink-0 rounded-xl border bg-muted/40 p-3">
                       <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4 text-primary" /> Most important</div>
                       <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.most_important) }} />
                     </div>
                   ) : null}
                   {session.insights.small_details ? (
-                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                    <div className="w-[280px] shrink-0 rounded-xl border bg-muted/40 p-3">
                       <div className="mb-2 flex items-center gap-2 text-sm font-medium"><FileText className="h-4 w-4 text-amber-500" /> Small details</div>
                       <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.small_details) }} />
                     </div>
                   ) : null}
                   {session.insights.action_items ? (
-                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                    <div className="w-[280px] shrink-0 rounded-xl border bg-muted/40 p-3">
                       <div className="mb-2 flex items-center gap-2 text-sm font-medium"><Settings className="h-4 w-4 text-emerald-600" /> Action items</div>
                       <div className="prose prose-sm max-w-none [&_ul]:list-disc [&_ul]:pl-4" dangerouslySetInnerHTML={{ __html: renderMarkdownWithMath(session.insights.action_items) }} />
                     </div>
                   ) : null}
                   {session.insights.questions ? (
-                    <div className="min-w-[260px] flex-1 rounded-xl border bg-muted/40 p-3">
+                    <div className="w-[280px] shrink-0 rounded-xl border bg-muted/40 p-3">
                       <div className="mb-2 flex items-center gap-2 text-sm font-medium"><MessageSquare className="h-4 w-4 text-blue-600" /> Questions to ask</div>
                       <div className="prose prose-sm max-w-none whitespace-pre-wrap">{session.insights.questions}</div>
                     </div>
                   ) : null}
+                  </div>
                 </div>
               </div>
             ) : null}
