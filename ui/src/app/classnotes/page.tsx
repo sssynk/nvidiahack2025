@@ -31,6 +31,8 @@ import {
   PlayCircle,
   Settings,
   Plus,
+  Moon,
+  Sun,
 } from "lucide-react";
 
 // API base
@@ -409,6 +411,26 @@ export default function ClassNotesDemo() {
 // ---------------------------------------------
 
 function TopNav({ onReset, onGoDashboard }: { onReset: () => void; onGoDashboard: () => void }) {
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is active on mount
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
+
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+      html.classList.remove('dark');
+      setIsDark(false);
+      localStorage.setItem('theme', 'light');
+    } else {
+      html.classList.add('dark');
+      setIsDark(true);
+      localStorage.setItem('theme', 'dark');
+    }
+  };
+
   return (
     <div className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto flex max-w-[1400px] items-center justify-between px-4 py-3">
@@ -416,6 +438,14 @@ function TopNav({ onReset, onGoDashboard }: { onReset: () => void; onGoDashboard
           <Image src="/nvidialogo.png" alt="NVIDIA" width={120} height={24} priority />
         </button>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="icon" 
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
           <a href="/settings" className="hidden sm:inline-flex">
             <Button variant="outline" size="sm">
               <Settings className="mr-2 h-4 w-4" /> Settings

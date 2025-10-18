@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Moon, Sun, ArrowLeft } from "lucide-react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
@@ -14,6 +15,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [asrMode, setAsrMode] = useState<"free" | "fast">("free");
   const [llmProvider, setLlmProvider] = useState<"nvidia" | "groq" | "openai">("nvidia");
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Check if dark mode is active on mount
+    setIsDark(document.documentElement.classList.contains('dark'));
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -39,6 +46,19 @@ export default function SettingsPage() {
     })();
   }, []);
 
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    if (html.classList.contains('dark')) {
+      html.classList.remove('dark');
+      setIsDark(false);
+      localStorage.setItem('theme', 'light');
+    } else {
+      html.classList.add('dark');
+      setIsDark(true);
+      localStorage.setItem('theme', 'dark');
+    }
+  };
+
   async function save() {
     setSaving(true);
     try {
@@ -56,6 +76,21 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <a href="/classnotes">
+          <Button variant="ghost" size="sm">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+          </Button>
+        </a>
+        <Button 
+          variant="outline" 
+          size="icon" 
+          onClick={toggleTheme}
+          title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Settings</CardTitle>
