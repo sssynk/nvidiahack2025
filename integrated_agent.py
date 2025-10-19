@@ -138,6 +138,56 @@ class IntegratedClassAgent:
             "num_pages": pdf_info.get("num_pages", 0)
         }
     
+    def process_docx(
+        self,
+        docx_path: str,
+        class_id: str,
+        session_title: Optional[str] = None,
+        auto_summarize: bool = True
+    ) -> Dict:
+        """
+        Process a DOCX: extract text, store, and optionally summarize
+        
+        Args:
+            docx_path: Path to the DOCX file
+            class_id: Unique identifier for the class
+            session_title: Optional title for the session/document
+            auto_summarize: Whether to automatically generate a summary
+            
+        Returns:
+            Dictionary with text content and summary information
+        """
+        # Get session title from filename if not provided
+        if not session_title:
+            session_title = Path(docx_path).stem.replace('_', ' ').replace('-', ' ').title()
+        
+        # Extract text from DOCX
+        print(f"Processing DOCX: {docx_path}")
+        text_content = self.pdf_reader.extract_text_from_docx(docx_path)
+        
+        if not text_content or not text_content.strip():
+            raise ValueError("DOCX extraction failed or produced empty result")
+        
+        print(f"DOCX text extracted successfully")
+        
+        # Add session to class agent (using text_content as "transcript")
+        print(f"Adding DOCX content to class agent...")
+        session = self.class_agent.add_class_session(
+            class_id=class_id,
+            transcript=text_content,
+            session_title=session_title,
+            auto_summarize=auto_summarize,
+        )
+        
+        return {
+            "class_id": class_id,
+            "session_id": session.get("session_id"),
+            "title": session_title,
+            "transcript": text_content,
+            "summary": session.get("summary"),
+            "docx_path": docx_path
+        }
+    
     def ask_question(self, class_id: str, question: str, stream: bool = True):
         """Ask a question about a class"""
         return self.class_agent.ask_question(class_id, question, stream)

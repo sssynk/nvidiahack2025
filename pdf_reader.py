@@ -1,17 +1,18 @@
 """
-PDF text extraction for lecture materials
+Document text extraction for lecture materials (PDF, DOCX)
 """
 import os
 from pathlib import Path
 from typing import Optional
 from PyPDF2 import PdfReader
+from docx import Document
 
 
 class PDFReader:
-    """Handles PDF text extraction"""
+    """Handles PDF and DOCX text extraction"""
     
     def __init__(self):
-        """Initialize the PDF reader"""
+        """Initialize the document reader"""
         pass
     
     def extract_text_from_pdf(self, pdf_path: str) -> str:
@@ -104,6 +105,87 @@ class PDFReader:
             
             # Check if it has at least one page
             if len(reader.pages) == 0:
+                return False
+            
+            return True
+        except Exception:
+            return False
+    
+    def extract_text_from_docx(self, docx_path: str) -> str:
+        """
+        Extract all text content from a DOCX file
+        
+        Args:
+            docx_path: Path to the DOCX file
+            
+        Returns:
+            Extracted text content from all paragraphs and tables
+        """
+        if not os.path.isfile(docx_path):
+            raise ValueError(f"Invalid DOCX file path: {docx_path}")
+        
+        if not docx_path.lower().endswith('.docx'):
+            raise ValueError(f"File is not a DOCX: {docx_path}")
+        
+        try:
+            # Open and read the DOCX
+            doc = Document(docx_path)
+            
+            if len(doc.paragraphs) == 0 and len(doc.tables) == 0:
+                raise ValueError("DOCX has no content")
+            
+            # Extract text from all paragraphs
+            text_content = []
+            
+            for para in doc.paragraphs:
+                para_text = para.text.strip()
+                if para_text:
+                    text_content.append(para_text)
+            
+            # Extract text from tables
+            for table in doc.tables:
+                for row in table.rows:
+                    row_text = []
+                    for cell in row.cells:
+                        cell_text = cell.text.strip()
+                        if cell_text:
+                            row_text.append(cell_text)
+                    if row_text:
+                        text_content.append(" | ".join(row_text))
+            
+            if not text_content:
+                raise ValueError("No text could be extracted from DOCX")
+            
+            # Join all content with double newline
+            full_text = "\n\n".join(text_content)
+            
+            return full_text
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract text from DOCX: {str(e)}")
+    
+    def validate_docx(self, docx_path: str) -> bool:
+        """
+        Check if a file is a valid DOCX
+        
+        Args:
+            docx_path: Path to the DOCX file
+            
+        Returns:
+            True if valid DOCX, False otherwise
+        """
+        try:
+            if not os.path.isfile(docx_path):
+                return False
+            
+            if not docx_path.lower().endswith('.docx'):
+                return False
+            
+            # Try to open it
+            doc = Document(docx_path)
+            
+            # Check if it has any content
+            if len(doc.paragraphs) == 0 and len(doc.tables) == 0:
                 return False
             
             return True

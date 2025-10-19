@@ -501,7 +501,7 @@ function UploadScreen({
                 <UploadCloud className="h-7 w-7 text-primary" />
               </div>
               <div className="text-lg font-medium">Drop a file here, or click to browse</div>
-              <p className="mt-1 text-sm text-muted-foreground">Videos (.mp4, .mov), Audio (.mp3), or PDFs up to 2 GB</p>
+              <p className="mt-1 text-sm text-muted-foreground">Videos (.mp4, .mov), Audio (.mp3), Documents (.pdf, .docx) up to 2 GB</p>
               <div className="mt-6 grid w-full gap-3 text-left">
                 <div className="flex items-center gap-3">
                   <label className="w-[120px] text-sm text-muted-foreground">Class</label>
@@ -534,7 +534,7 @@ function UploadScreen({
               <input
                 ref={inputRef}
                 type="file"
-                accept="video/*,audio/*,.pdf"
+                accept="video/*,audio/*,.pdf,.docx"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0] || null;

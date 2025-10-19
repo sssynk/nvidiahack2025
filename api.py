@@ -62,7 +62,7 @@ async def upload_file(
         session_title = base.replace("_", " ").replace("-", " ").title()
 
     try:
-        # Check if it's a PDF
+        # Check file type and process accordingly
         if file_ext == ".pdf":
             result = agent.process_pdf(
                 pdf_path=dest_path,
@@ -71,6 +71,14 @@ async def upload_file(
                 auto_summarize=True,
             )
             return {"ok": True, "file_type": "pdf", **result}
+        elif file_ext == ".docx":
+            result = agent.process_docx(
+                docx_path=dest_path,
+                class_id=class_id,
+                session_title=session_title,
+                auto_summarize=True,
+            )
+            return {"ok": True, "file_type": "docx", **result}
         else:
             # Process as video/audio
             result = agent.process_video(

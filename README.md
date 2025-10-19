@@ -6,7 +6,7 @@ AI-powered lecture transcription and analysis tool using NVIDIA APIs. Organize c
 
 - 📚 **Class Organization** - Create and manage multiple classes
 - 🎥 **Video Transcription** - Auto-transcribe lectures with NVIDIA Riva ASR
-- 📄 **PDF Support** - Upload and analyze lecture slides, readings, and documents
+- 📄 **Document Support** - Upload and analyze PDFs and Word documents (slides, readings, notes)
 - ✨ **AI Summaries** - Generate summaries with GPT, NVIDIA Nemotron, or Groq
 - 💬 **Chat Interface** - Ask questions about your lectures and PDFs
 - 🔍 **Multi-Session Search** - Query across all sessions in a class
@@ -139,9 +139,9 @@ To use OpenAI instead of NVIDIA:
 ### Supported File Types
 - **Videos**: `.mp4`, `.avi`, `.mov`, `.mkv`, `.webm`, `.flv`
 - **Audio**: `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`
-- **Documents**: `.pdf` (lecture slides, readings, textbooks)
+- **Documents**: `.pdf`, `.docx` (lecture slides, readings, textbooks, Word documents)
 
-See [PDF_SUPPORT.md](PDF_SUPPORT.md) for details on PDF features.
+See [PDF_SUPPORT.md](PDF_SUPPORT.md) for details on document upload features.
 
 ## Tech Stack
 
