@@ -156,16 +156,23 @@ export default function SettingsPage() {
                   {!apiKeysAvailable.nvidia && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
                 </Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem id="llm-openai" value="openai" disabled={!apiKeysAvailable.openai} />
-                <Label 
-                  htmlFor="llm-openai"
-                  className={!apiKeysAvailable.openai ? "text-muted-foreground/50" : ""}
-                >
-                  OpenAI — GPT-4o/GPT-4o-mini
-                  {apiKeysAvailable.openai && <span className="ml-2 text-xs text-green-600">✓ Configured</span>}
-                  {!apiKeysAvailable.openai && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
-                </Label>
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem id="llm-openai" value="openai" disabled={!apiKeysAvailable.openai} />
+                  <Label 
+                    htmlFor="llm-openai"
+                    className={!apiKeysAvailable.openai ? "text-muted-foreground/50" : ""}
+                  >
+                    OpenAI — GPT-4o/GPT-4o-mini
+                    {apiKeysAvailable.openai && <span className="ml-2 text-xs text-green-600">✓ Configured</span>}
+                    {!apiKeysAvailable.openai && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
+                  </Label>
+                </div>
+                {llmProvider === "openai" && apiKeysAvailable.openai && !apiKeysAvailable.nvidia && !apiKeysAvailable.groq && (
+                  <div className="ml-6 text-xs text-amber-600">
+                    ⚠️ Note: OpenAI only supports documents (PDF/DOCX). Videos require NVIDIA or Groq for transcription.
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <RadioGroupItem id="llm-groq" value="groq" disabled={!apiKeysAvailable.groq} />
