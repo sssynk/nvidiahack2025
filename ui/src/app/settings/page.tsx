@@ -16,6 +16,11 @@ export default function SettingsPage() {
   const [asrMode, setAsrMode] = useState<"free" | "fast">("free");
   const [llmProvider, setLlmProvider] = useState<"nvidia" | "groq" | "openai">("nvidia");
   const [isDark, setIsDark] = useState(false);
+  const [apiKeysAvailable, setApiKeysAvailable] = useState({
+    nvidia: false,
+    openai: false,
+    groq: false,
+  });
 
   useEffect(() => {
     // Check if dark mode is active on mount
@@ -37,6 +42,15 @@ export default function SettingsPage() {
           setLlmProvider("groq");
         } else {
           setLlmProvider("nvidia");
+        }
+        
+        // Get API key availability
+        if (data?.api_keys_available) {
+          setApiKeysAvailable({
+            nvidia: data.api_keys_available.nvidia || false,
+            openai: data.api_keys_available.openai || false,
+            groq: data.api_keys_available.groq || false,
+          });
         }
       } catch {
         // keep default
@@ -103,16 +117,28 @@ export default function SettingsPage() {
             <RadioGroup value={asrMode} onValueChange={(v) => setAsrMode((v as "free" | "fast") || "free")}
               className="grid gap-2">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem id="asr-free" value="free" />
-                <Label htmlFor="asr-free">Free (slow) — NVIDIA Riva (lower quality and slower)</Label>
+                <RadioGroupItem id="asr-free" value="free" disabled={!apiKeysAvailable.nvidia} />
+                <Label 
+                  htmlFor="asr-free"
+                  className={!apiKeysAvailable.nvidia ? "text-muted-foreground/50" : ""}
+                >
+                  Free (slow) — NVIDIA Riva
+                  {!apiKeysAvailable.nvidia && <span className="ml-2 text-xs text-destructive">⚠️ NVIDIA API key missing</span>}
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem id="asr-fast" value="fast" />
-                <Label htmlFor="asr-fast">Fast (paid) — Groq Whisper (higher quality and faster)</Label>
+                <RadioGroupItem id="asr-fast" value="fast" disabled={!apiKeysAvailable.groq} />
+                <Label 
+                  htmlFor="asr-fast"
+                  className={!apiKeysAvailable.groq ? "text-muted-foreground/50" : ""}
+                >
+                  Fast (paid) — Groq Whisper
+                  {!apiKeysAvailable.groq && <span className="ml-2 text-xs text-destructive">⚠️ GROQ API key missing</span>}
+                </Label>
               </div>
             </RadioGroup>
             <div className="mt-2 text-xs text-muted-foreground">
-              Fast mode uses Groq Whisper and requires GROQ_API_KEY env configured server-side.
+              ASR is only needed for video/audio transcription. Documents (PDF/DOCX) do not require ASR.
             </div>
           </div>
 
@@ -121,20 +147,39 @@ export default function SettingsPage() {
             <RadioGroup value={llmProvider} onValueChange={(v) => setLlmProvider((v as "nvidia" | "groq" | "openai") || "nvidia")}
               className="grid gap-2">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem id="llm-nvidia" value="nvidia" />
-                <Label htmlFor="llm-nvidia">NVIDIA — Nemotron (free tier)</Label>
+                <RadioGroupItem id="llm-nvidia" value="nvidia" disabled={!apiKeysAvailable.nvidia} />
+                <Label 
+                  htmlFor="llm-nvidia" 
+                  className={!apiKeysAvailable.nvidia ? "text-muted-foreground/50" : ""}
+                >
+                  NVIDIA — Nemotron (free tier)
+                  {!apiKeysAvailable.nvidia && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem id="llm-openai" value="openai" />
-                <Label htmlFor="llm-openai">OpenAI — GPT-4o/GPT-4o-mini</Label>
+                <RadioGroupItem id="llm-openai" value="openai" disabled={!apiKeysAvailable.openai} />
+                <Label 
+                  htmlFor="llm-openai"
+                  className={!apiKeysAvailable.openai ? "text-muted-foreground/50" : ""}
+                >
+                  OpenAI — GPT-4o/GPT-4o-mini
+                  {apiKeysAvailable.openai && <span className="ml-2 text-xs text-green-600">✓ Configured</span>}
+                  {!apiKeysAvailable.openai && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
+                </Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem id="llm-groq" value="groq" />
-                <Label htmlFor="llm-groq">Groq — openai/gpt-oss-20b</Label>
+                <RadioGroupItem id="llm-groq" value="groq" disabled={!apiKeysAvailable.groq} />
+                <Label 
+                  htmlFor="llm-groq"
+                  className={!apiKeysAvailable.groq ? "text-muted-foreground/50" : ""}
+                >
+                  Groq — openai/gpt-oss-20b
+                  {!apiKeysAvailable.groq && <span className="ml-2 text-xs text-destructive">⚠️ API key missing</span>}
+                </Label>
               </div>
             </RadioGroup>
             <div className="mt-2 text-xs text-muted-foreground">
-              OpenAI requires OPENAI_API_KEY env. Groq requires GROQ_API_KEY env. Configure server-side.
+              Set API keys as environment variables on the server to enable providers.
             </div>
           </div>
 

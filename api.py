@@ -117,7 +117,17 @@ def get_class(class_id: str):
 
 @app.get("/api/settings")
 def get_settings():
-    return {"ok": True, "settings": settings_mgr.get_settings()}
+    # Check which API keys are available
+    api_keys_available = {
+        "nvidia": bool(os.getenv("NVIDIA_API_KEY")),
+        "openai": bool(os.getenv("OPENAI_API_KEY")),
+        "groq": bool(os.getenv("GROQ_API_KEY")),
+    }
+    return {
+        "ok": True, 
+        "settings": settings_mgr.get_settings(),
+        "api_keys_available": api_keys_available
+    }
 
 
 @app.post("/api/settings")
