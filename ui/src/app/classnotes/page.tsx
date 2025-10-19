@@ -184,9 +184,33 @@ export default function ClassNotesDemo() {
   const [classesUI, setClassesUI] = useState<ClassInfo[]>(demoClasses);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(initialClassFromQuery || (demoClasses[0]?.id ?? null));
   const [selectedClassInfo, setSelectedClassInfo] = useState<Record<string, unknown> | null>(null);
+  const [apiKeysAvailable, setApiKeysAvailable] = useState({
+    nvidia: false,
+    openai: false,
+    groq: false,
+  });
 
   const selectedClass = useMemo(() => getSelectedClass(classesUI, selectedClassId), [classesUI, selectedClassId]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+
+  // Fetch API key availability on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/settings`);
+        const data = await res.json();
+        if (data?.api_keys_available) {
+          setApiKeysAvailable({
+            nvidia: data.api_keys_available.nvidia || false,
+            openai: data.api_keys_available.openai || false,
+            groq: data.api_keys_available.groq || false,
+          });
+        }
+      } catch {
+        // keep defaults
+      }
+    })();
+  }, []);
 
   // When server class info arrives or changes, set default selected session
   useEffect(() => {
@@ -263,6 +287,25 @@ export default function ClassNotesDemo() {
 
   // Upload handler
   async function handleUpload(file: File) {
+    // Check if file type is supported based on available API keys
+    const fileName = file?.name || "";
+    const fileExt = fileName.toLowerCase().split('.').pop() || "";
+    
+    // Video/Audio types - require transcription API (NVIDIA or Groq)
+    const videoAudioTypes = ['mp4', 'avi', 'mov', 'mkv', 'webm', 'flv', 'mp3', 'wav', 'flac', 'ogg', 'm4a'];
+    
+    // Check if it's a video/audio file and if transcription is available
+    if (videoAudioTypes.includes(fileExt)) {
+      // Need either NVIDIA or Groq for transcription
+      const hasTranscription = apiKeysAvailable.nvidia || apiKeysAvailable.groq;
+      if (!hasTranscription) {
+        alert('⚠️ Video/audio uploads require NVIDIA or Groq API keys for transcription.\n\n' +
+              'You can still upload documents (PDF, DOCX).\n\n' +
+              'To upload videos, configure NVIDIA_API_KEY or GROQ_API_KEY on the server.');
+        return;
+      }
+    }
+    
     setUploadName(file?.name || null);
     setStage("processing");
     setProgress(0);
